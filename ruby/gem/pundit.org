@@ -1,0 +1,138 @@
+#+title: Pundit
+- 通常のRubyクラスとオブジェクト指向のデザインパターンを活用して、認可システムを構築するためのヘルパーセット
+- Include Pundit::Authorization in your application controller
+  #+begin_src ruby
+  class ApplicationController < ActionController::Base
+    include Pundit::Authorization
+  end
+  #+end_src
+- setupするとapp/policies/配下に作成される
+  #+begin_src
+  rails g pundit:install
+  #+end_src
+- Policies
+  - ユーザーが管理者かつ、投稿が未公開の場合にupdateできるように
+    #+begin_src ruby
+    class PostPolicy
+      attr_reader :user, :post
+
+      def initialize(user, post)
+        @user = user
+        @post = post
+      end
+
+      def update?
+        user.admin? || !post.published?
+      end
+    end
+    #+end_src
+  - ApplicationPolicyでは、モデルオブジェクトはrecordと呼ばれる。
+    #+begin_src ruby
+    # recordはPostクラスに紐づく
+    class PostPolicy < ApplicationPolicy
+      def update?
+        user.admin? or not record.published?
+      end
+    end
+    #+end_src
+  - authorizeメソッドは、Postが一致するPostPolicyクラスを持っていることを自動的に推測し、
+    このクラスをインスタンス化して、現在のユーザーと与えられたレコードを渡す。
+    #+begin_src ruby
+    def update
+      @post = Post.find(params[:id])
+      authorize @post
+      if @post.update(post_params)
+        redirect_to @post
+      else
+        render :edit
+      end
+    end
+    #+end_src
+    authorize would have done something like this:
+    #+begin_src ruby
+    unless PostPolicy.new(current_user, @post).update?
+      raise Pundit::NotAuthorizedError, "not allowed to PostPolicy#update? this Post"
+    end
+    #+end_src
+  - policyのインスタンスはviewとcontrollerから取得できるので、viewでリンクやボタンを条件付きで表示するのに便利らしい
+    #+begin_src ruby
+    <% if policy(@post).update? %>
+      <% link_to "Edit post", edit_post_path(@post) %>
+    <% end %>
+    #+end_src
+- Scopes
+  - 特定のユーザーがアクセスできるレコードを一覧表示するビューを持ちたい場合、
+    policy scopeというクラスを定義すれば良い
+    #+begin_src ruby
+    class PostPolicy < ApplicationPolicy
+      # Scope < ApplicationPolicy::Scopeで継承することも可能
+      class Scope
+        def initialize(user, scope)
+          @user = user
+          # 何らかのクエリを実行するscope。通常はActiveRecord or ActiveRecord::Relationだが、それ以外でもOK
+          @scope = scope
+        end
+
+        # resolveの結果を返す。adminの場合は全ての閲覧できる。それ以外だとpublishedのみ
+        def resolve
+          if user.admin?
+            scope.all
+          else
+            scope.where(published: true)
+          end
+        end
+
+        private
+
+        attr_reader :user, :scope
+      end
+
+      def update?
+        user.admin? or not record.published?
+      end
+    end
+    #+end_src
+    controllerで呼び出す
+    #+begin_src ruby
+    def index
+      @posts = policy_scope(Post)
+    end
+
+    def show
+      @post = policy_scope(Post).find(params[:id])
+    end
+    #+end_src
+    viewでも呼び出せる
+    #+begin_src ruby
+    # viewで呼び出せるが、できるだけcontroller内で完結させたい気持ちがある。
+    # controllerの知識が漏れ出している感じがする。
+    <% policy_scope(@user.posts).each do |post| %>
+      <p><%= link_to post.title, post_path(post) %></p>
+    <% end %>
+    #+end_src
+- Ensuring policies and scopes are used
+  - controller actionでauthorizedを呼び出したかどうかを追跡することができ、callされていない場合には例外を発生させることができる
+    #+begin_src ruby
+    class ApplicationController < ActionController::Base
+      include Pundit::Authorization
+      after_action :verify_authorized
+    end
+    #+end_src
+  - 特定のaction(index)でpolicy_scopeとauthorizedの使い分けを厳密にしたい場合は、下記のようにすると良い。
+    indexはpolicy_scopeを使うから、下記のように縛っておくのが開発しやすいと思う
+    #+begin_src ruby
+    class ApplicationController < ActionController::Base
+      include Pundit::Authorization
+      after_action :verify_pundit_authorization
+
+      def verify_pundit_authorization
+        if action_name == "index"
+          verify_policy_scoped
+        else
+          verify_authorized
+        end
+      end
+    end
+    #+end_src
+- 参考
+  https://github.com/varvet/pundit
