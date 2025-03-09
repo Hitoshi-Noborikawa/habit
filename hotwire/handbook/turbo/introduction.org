@@ -1,0 +1,100 @@
+#+title: Turbo
+* Introduction
+** Introduction
+Turboを使用すると、サーバーにHTMLを直接配信させることができる。全てのロジックはサーバーにあり、ブラウザは最終的なHTMLを処理するだけ。
+** Turbo Drive: Navigate within a persistent process
+- SPAはアプリケーションプロセスを停止させることなく、次のページで初期化することでスピードを出している。
+- Turbo Driveはクライアント側のルーターを維持する必要がなく、ステートを注意深く管理する必要もない。
+  - 永続プロセスはTurboによって管理されているらしい。
+    → 永続プロセスとは？どのように管理されているのか？
+  - 同じドメインへの<a href>リンクをクリックすると、Trubo Driveはブラウザがリンクをたどらないようにし、
+    History APIを使用してブラウザのURLを変更し、fetchを使用して新しいページを要求し、HTMLレスポンスをレンダリングする。
+    - <a href>をクリックすると、fetch先のurlを取得してURLを変更する。という解釈
+    - formも同じ。
+  - レンダリング中、Turbo Driveは<body>要素の内容を置き換え、<head>要素の内容をマージする。
+** Turbo Frames: Decompose complex pages
+- ほとんどのWebアプリケーションはいつくかの独立したセグメントを含むページを表示する
+  - ディスカッションページの場合
+    - ナビゲーションバー
+    - メッセージのリスト
+    - 新しいメッセージを追加するフォーム
+    - サイドバー
+  この各セグメントを繋ぎ合わせて、ブラウザに単一のHTMLレスポンスを配信する
+  - Turbo Framesを使用すると、ナビゲーションをスコープして遅延ロードできる
+    - 遅延ロードとは？
+      - リソースをノンブロッキング(クリティカル)出ないものとして識別し、必要な時だけこれらを読み込む戦略のこと。
+      - 一般的にスクロールやナビゲーションなど、何らかのユーザー操作の際に発生する。
+        - JavaScript type="module"
+        - font
+          既定では、フォントリクエストはレンダーツリーが構築されるまで遅延されるため、テキスト描画が遅延することがある。
+        - 画像とiframe
+          - loading属性
+            <img>要素にloading属性を設定することで、ユーザーが近くにスクロールするまで、画面に表示されている画像やiframeの読み込みを延期するように、ブラウザに指示することができる。
+      参考: https://developer.mozilla.org/ja/docs/Web/Performance/Guides/Lazy_loading
+    - 独立したセグメントを独自のナビゲーション・コンテキストで囲むには、<turbo-frame>タグで囲む
+      #+begin_src html
+      <turbo-frame id="new_message">
+        <form action="/messages" method="post">
+        </form>
+      </turbo-frame>
+      #+end_src
+      上記のフォームを送信すると、TurboはredirectされたHTMLレスポンスから一致する<turbo-frame id="new_message">要素を抽出し、
+      その内容を既存のnew_messageフレーム要素に入れ替える。ページの残りの部分はそのまま残る。
+    - Framesはナビゲーションのスコープに加えて、コンテンツの読み込みを延期することができる。
+      Framesの読み込みを延期するには、自動的に読み込まれるURLを値とするsrc属性を追加する。
+      スコープ・ナビゲーションと同様に、Truboは結果のレスポンスから一致するフレームを見つけて抽出し、そのコンテンツを所定の位置に入れ替える。
+      #+begin_src html
+      <turbo-frame id="messages" src="/messages">
+        <p>This message will be replaced by the response from /mesages.</p>
+      </turbo-frame>
+      #+end_src
+    - セグメントを独立したコンテキストに変えるだけでなく、Turbo Framesを使用すると、下記のようなことが可能になる。
+      - 効率的なキャッシュ
+        サイドバーは新しい関連トピックが表示されるたびにキャッシュを更新する必要があるが、メッセージリストはそうではない。
+        しなくても良いキャッシュの更新を制御できる
+      - 並列実行
+        遅延ロードされた各Framesは、ぞれぞれのHTTPリクエスト/レスポンスによって生成されるため、別々のプロセスで処理することができる。
+        end to endで400msかかる複雑な複合ページを、最初のリクエストは50ms秒、3つの遅延ロードされたフレームはそれぞれ50msしかかからないようなFramesに分割できる。
+        それぞれ50msかかる3つのフレームが並列で実行されるため、ページ全体は100msで完了する。
+      - モバイル対応
+    -
+** Turbo Streams: Deliver live page changes
+- Turbo Framesでは、1つのFrames内での直接的なインタラクションに応じて更新が行われるが、Trubo Streamsでは、WebSocket接続やSSEなどのトランスポートを介して送信される更新に応じて、ページの任意の部分を変更することができる。
+- Turbo Streamsは、9つの基本的なアクションを持つ<turbo-stream>要素を導入している。
+  - append
+  - prepend
+  - replace
+  - update
+  - remove
+  - before
+  - after
+  - morph
+  - refresh
+  これらのアクションと、操作したい要素のIDを指定するtarget属性によって、ページを更新するために必要な全ての変更をエンコードできる。
+  複数のstreams要素を1つのstreamsメッセージにまとめることもできる。
+  挿入または置換したいHTMlをテンプレートタグに含めるだけでできる。
+  #+begin_src html
+  <turbo-stream action="append" target="messages">
+    <template>
+      <div id="message_1">My new message!</div>
+    </template>
+  </turbo-stream>
+  #+end_src
+  このstreams要素は、新しいメッセージの入ったdivを受け取り、IDメッセージの入ったコンテナに追加する。
+  #+begin_src html
+  <turbo-stream action="replace" target="message_1">
+    <template>
+      <div id="message_1">This changes the existing message!</div>
+    </template>
+  </turbo-stream>
+  #+end_src
+  これは、Railsの世界で最初にRJSと呼ばれ、その後SJRと呼ばれるようになったものの概念的な継承ではあるが、JavaScriptを必要とせずに実現している。
+  - サーバー側のテンプレートの再利用
+    ライブページの変更は、ファーストロードページの作成に使用されたのと同じサーバー側のテンプレートを使用して生成される。
+  - HTML over the wire
+    送信するのはHTMLだけなので、クライアントサイドのJavaScript(Turboを除いて)は必要ない。
+    HTMLのペイロードは同等のJSONより大きくなるかもしれないが、gzipを使えばさほど問題なく、JSONを取得してHTMLに変換するために必要なクライアント側の労力が節約できる。
+  - Simple control flow
+    WebSocket, SSE,またはフォーム送信に応答してメッセージが到着した時に何が起きるかを追跡しやすい。
+    変更されるのはHTMLだけで、その方法を示す1つのタグに包まれている。
+  TurboはDOMを更新することだけに焦点を当て、Stimulusアクションとライフサイクルコールバックを使用して追加の動作を接続することを想定している。
