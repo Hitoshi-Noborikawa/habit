@@ -1,0 +1,74 @@
+#+title: Navigate With Turbo Drive
+Trubo Driveは、ページレベルのナビゲーションを強化するTurboの一部。
+リンクのクリックやフォームの送信を監視して、バックグランドでそれらを実行し、完全なリロードを行うことなくページを更新する。
+* Page Navigation Basics
+- visitはクリックからレンダリングまでのナビゲーションのライフサイクル全体を表す。
+  ブラウザ履歴の変更、ネットワーク要求の発行、キャッシュからページのコピーの復元、スクロールの位置が含まれる。
+- レンダリング中、リクエスト・ドキュメント<body>の内容をレスポンス・ドキュメントの内容き置き換える。
+  <head>の内容も。<html>のlang属性を更新することもあるらしい。
+- visitには2種類あって、application visitとrestoration visitがある。
+* Application Visits
+- turbo drive対応のリンクをクリックするか、Turbo.visit(location)を呼日出すことで使用できる。
+  可能な場合、visitの際にキャッシュからページのプレビューをレンダリングする。
+  visit先にアンカーが含まれている場合、turbo driveはアンカー要素までスクロールしようとする。ない場合はページの一番下までする。
+  Aplication visits result in a change to the browser's history
+- defaultのvisitアクションはadvance。history.pushStateを使用して、ブラウザの履歴スタックに新しいエントリをプッシュする。
+- replace visitアクションはhistory.replaceStateを使用して、一番上のhistoryエントリを破棄し、新しい場所に置き換える。
+  こうすることで、新しいhistoryエントリをstackにプッシュすることなく、visitできる。
+  linkをたどってvisitをreplaceするように指定する場合、linkにdata-turbo-action="replace"をつける
+  #+begin_src html
+  <!-- URLを書き換えないという認識 -->
+  <a href="/edit" data-turbo-action="replace">Edit</a>
+  #+end_src
+  #+begin_src js
+  Turbo.visit("/edit", { action: "replace" })
+  #+end_src
+* Restoration Visits
+- turbo driveはブラウザの戻るまたは進むボタンでnavigateすると、restoration visitを自動で行う。
+  可能であれば、リクエストを行わずにキャッシュからページのコピーをレンダリングする。
+  できなければ、ネットワーク経由でページの新しいコピーを取得する。
+- navigateする前に各ページのスクロール位置を保存し、restoration visit時に保存位置に自動で戻る。
+  内部的に使用されているので、明示的に呼び出すことはほぼないという認識。
+* Canceling Visits Before They Start
+- linkのクリックやTurbo.visitの呼び出されたかに関係なく、application visitは開始前にキャンセルできる。
+  turbo:before-visitイベントをlistenし、visitが始まろうとしている際に通知を受け、event.detail.urlを使用してvisitの場所を把握する。
+  そしてevent.preventDefault()を呼び出してvisitをキャンセルする。
+- restoration visitsはキャンセルできない。turbo:before-visitは起動しない。
+* Custom Rendering
+- ドキュメント全体のturbo:before-renderイベントリスナーを追加し、event.detail.renderプロパティをoverrideすることで、
+  レンダリングプロセスをカスタマイズできる。
+  #+begin_src js
+  import { Idiomorph } from "idiomorph"
+
+  addEventListener("turbo:before-render", (event) => {
+    event.detail.render = (currentElement, newElement) => {
+      Idiomorph.morph(currentElement, newElement)
+    }
+  })
+  #+end_src
+  どういうときにカスタマイズしたくなるのだろう？
+* Pausing Rendering
+- applicationはレンダリングを一時停止し、追加することができる
+  turbo:before-renderイベントをlistenして、レンダリングが開始されそうになったときに通知を受け、event.preventDefault()を使用して
+  レンダリングを一時停止する。準備ができたらevent.detail.resume()を呼び出してレンダリングを続行する。
+  #+begin_src js
+  // visitする際の退出アニメーションとかで使う
+  document.addEventListener("turbo:before-render", async (event) => {
+    event.preventDefault()
+    await animateOut()
+    event.detail.resume()
+  })
+  #+end_src
+* Pausing Requests
+- applicationはリクエストを一時停止し、追加することができる
+  turbo:before-fetch-requestイベントをlistenして、リクエストが開始されそうになったときに通知を受け、event.preventDefault()を使って一時停止する。
+  準備が完了したら、event.detail.resume()を呼び出してリクエストを続行する。
+  #+begin_src js
+  // リクエストにAuthorization headerを追加する
+  document.addEventListener("turbo:before-fetch-request", async (event) => {
+    event.preventDefault()
+    const token = await getSessionToken(window.app)
+    event.detail.fetchOptions.headers["Authorization"] = `Bearer ${token}`
+    event.detail.resume()
+  })
+  #+end_src
