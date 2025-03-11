@@ -72,3 +72,105 @@ Trubo Driveは、ページレベルのナビゲーションを強化するTurbo�
     event.detail.resume()
   })
   #+end_src
+
+* Performing Visits With a Different Method
+- 普通はgetメソッドだけど、data-turbo-methodで変更できる
+  #+begin_src html
+  <a href="/articles/54" data-turbo-method="delete">Delete</a>
+  #+end_src
+* Requiring Confirmation for a Visit
+- confim呼び出せるよ
+  #+begin_src html
+  <a href="/articles" data-turbo-method="get" data-turbo-confirm="Do you want to leave this page?">Back to page</a>
+  <a href="/article/54" data-turbo-method="delete" data-turbo-confirm="Are you sure want to delete?">delete</a>
+  #+end_src
+
+* Dsabling Turbo Drive on Specific Links or Forms
+- data-turbo="false"
+  #+begin_src html
+  <a href="/" data-turbo="false">Disabled</a>
+
+  <form action="/messages" method="post" data-turbo="false">
+  </form>
+
+  <div data-turbo="false">
+    <a href="/">Disabled</a>
+    <form action="/messages" method="post">
+    </form>
+  </div>
+  #+end_src
+  子で有効にする場合は、data-turbo="true"を使う
+  #+begin_src html
+  <div data-turbo="false">
+    <a href="/" data-turbo="true">Enabled</a>
+  </div>
+  #+end_src
+
+* View Transition
+- 現在のページと次のページの両方に下記のメタタグがある場合、view遷移をトリガーする
+  #+begin_src html
+  <meta name="view-transition" content="same-origin">
+  #+end_src
+  <html>要素にdata-turbo-visit-direction属性を指定することで、遷移の方向を決めれる
+  #+begin_src html
+  html[data-turbo-visit-direction="forward"]::view-transition-old(sidebar):only-child {
+    animation: slide-to-right 0.5s ease-out;
+  }
+  #+end_src
+
+* Displaying Progress
+- navigation中にはブラウザネイティブのではなく、CSSベースのプログレスバーを表示させる
+  turbo-progress-barを持つ<div>要素。
+  #+begin_src css
+  /* 変更できるよ */
+  .turbo-progress-bar {
+      height: 5px;
+      background-color: green;
+  }
+
+  /* 無効にもできるよ */
+  .turbo-progress-bar {
+      visibility: hidden;
+  }
+  #+end_src
+* Reloading When Assets Change
+- asset要素にdata-turbo-track="reload"のアノテーションをつけてURLにバージョン識別子を含めることで、
+  CSS, JavaScriptが変更されたときにfetchではなくブラウザをリロードしているらしい。
+  どうやって差分検出しているのだろう
+  #+begin_src html
+  <head>
+    <link rel="stylesheet" href="/application-258e88d.css" data-turbo-track="reload">
+    <script src="/application-cbd3cd4.js" data-turbo-track="reload"></script>
+  </head>
+  #+end_src
+
+* Removing Assets When They Change
+- [data-turbo-track="dynamic"]で<link>要素または<style>要素をレンダリングすると、Turbo Driveはナビゲーションの応答から
+  その要素が亡くなったときに動的にその要素を削除するよう指示するらしい。
+  使い所がいまいちわからん
+  #+begin_src html
+  <head>
+    <link rel="stylesheet" href="/page-specific-styles-258e88d.css" data-turbo-track="dynamic">
+    <style data-turbo-track="dynamic">
+      .page-specific-styles { ... }
+    </style>
+  </head>
+  #+end_src
+
+* Ensuring Specific Pages Trigger a Full Reload
+- 特定のページへのvisitがフルリロードするように
+  #+begin_src html
+  <head>
+    <meta name="turbo-visit-control" content="reload">
+  </head>
+  #+end_src
+
+* Setting a Root Location
+- <head>に<meta name="turbo-root">要素を含めることで、Turbo Driveを特定のroot locationにスコープすることができる。
+  #+begin_src html
+  <head>
+    <meta name="turbo-root" content="/app">
+  </head>
+  #+end_src
+
+* Form Submissions
