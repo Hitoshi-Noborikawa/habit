@@ -1,8 +1,7 @@
 #+title: Turbo
 * Introduction
-** Introduction
 Turboを使用すると、サーバーにHTMLを直接配信させることができる。全てのロジックはサーバーにあり、ブラウザは最終的なHTMLを処理するだけ。
-** Turbo Drive: Navigate within a persistent process
+* Turbo Drive: Navigate within a persistent process
 - SPAはアプリケーションプロセスを停止させることなく、次のページで初期化することでスピードを出している。
 - Turbo Driveはクライアント側のルーターを維持する必要がなく、ステートを注意深く管理する必要もない。
   - 永続プロセスはTurboによって管理されているらしい。
@@ -12,7 +11,7 @@ Turboを使用すると、サーバーにHTMLを直接配信させることが�
     - <a href>をクリックすると、fetch先のurlを取得してURLを変更する。という解釈
     - formも同じ。
   - レンダリング中、Turbo Driveは<body>要素の内容を置き換え、<head>要素の内容をマージする。
-** Turbo Frames: Decompose complex pages
+* Turbo Frames: Decompose complex pages
 - ほとんどのWebアプリケーションはいつくかの独立したセグメントを含むページを表示する
   - ディスカッションページの場合
     - ナビゲーションバー
@@ -58,7 +57,7 @@ Turboを使用すると、サーバーにHTMLを直接配信させることが�
         それぞれ50msかかる3つのフレームが並列で実行されるため、ページ全体は100msで完了する。
       - モバイル対応
     -
-** Turbo Streams: Deliver live page changes
+* Turbo Streams: Deliver live page changes
 - Turbo Framesでは、1つのFrames内での直接的なインタラクションに応じて更新が行われるが、Trubo Streamsでは、WebSocket接続やSSEなどのトランスポートを介して送信される更新に応じて、ページの任意の部分を変更することができる。
 - Turbo Streamsは、9つの基本的なアクションを持つ<turbo-stream>要素を導入している。
   - append

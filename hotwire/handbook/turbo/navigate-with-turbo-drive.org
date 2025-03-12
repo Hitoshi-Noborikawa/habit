@@ -174,3 +174,20 @@ Trubo Driveは、ページレベルのナビゲーションを強化するTurbo�
   #+end_src
 
 * Form Submissions
+- turbo driveではlink clickと同様な方法でフォーム送信の処理をする。ステートレスなHTTP GETリクエストしか発行されない。
+  <form>送信中に他の変更を加えたい場合は、独自のイベントリスナーを宣言できる
+  #+begin_src js
+  addEventListener("turbo:submit-start", ({ target }) => {
+    for (const field of target.elements) {
+      field.disabled = true
+    }
+  })
+  #+end_src
+
+* Rendirecting After a Form Submission
+- turboがpostリクエストからの200系で通常のレンダリングを許可しないのは、ブラウザにはpostアクセス時にリロードするための動作があり、
+  turboが複製できない「このフォームをもう一度送信してもよろしいですか」ダイアログが表示されるから。
+  その代わり、turboはレンダリングしようとするフォーム送信時に、フォームアクションに変更するのではなく現在のURLに留まる。
+  リロードすると存在しないかもしれないURLにgetしてしまうかもしれないから。
+- フォーム送信がgetリクエストの場合、フォームにdata-turbo-frameターゲットを追加することで、直接レンダリングされたレスポンスをレンダリングできる。
+  レンダリングの一部としてURLを更新したい場合は、data-turbo-action属性も渡す。
