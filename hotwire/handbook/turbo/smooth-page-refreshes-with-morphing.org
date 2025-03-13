@@ -1,0 +1,47 @@
+#+title: Smooth Page Refreshes With Morphing
+フォーム送信後のリダイレクトで現在のページを再度読み込む際に、<body>を置き換える代わりに変更されたコンテンツだけと更新できるようにする。
+morphingとscrollで実現する
+* Morphing
+- turboはidiomorphライブラリを使用？してページの変更されたdom要素のみを更新している。
+  #+begin_src html
+  <head>
+    <!-- これで設定 -->
+    <meta name="turbo-refresh-method" content="morph">
+  </head>
+  #+end_src
+* Scroll preservation
+- ページ更新時に縦・横スクロールを保持する
+  #+begin_src html
+  <head>
+    <meta name="turbo-refresh-scroll" content="preserve">
+  </head>
+  #+end_src
+* Exclude sections from morphing
+- ページが更新される際にポップオーバーは残しておきたい場合、その要素にdata-turbo-permanentフラグをつけるとモーフィングの対象にならない
+  #+begin_src html
+  <div data-turbo-permanent>...</div>
+  #+end_src
+* Turbo frames
+- ページが更新された時にモーフィングを使ってリロードする範囲を定義できる。
+  最初のページ読み込みで間に合わなかった追加コンテンツ(ページネーション)などを読み込める。
+  ページが更新されると、turboはフレームのコンテンツを削除しない。代わりにturboフレームを再読み込みし、そのコンテンツをモーフィングでレンダリングする。
+  #+begin_src html
+  <turbo-frame id="my-frame" refresh="morph" src="/my_frame">
+  </turbo-frame>
+  #+end_src
+* Broadcasting page refreshes
+- turbo stream actionでもrefresh呼べる。
+  #+begin_src html
+  <turbo-stream action="refresh"></turbo-stream>
+  #+end_src
+  サーバーサイドのフレームワークはstreamを活用してブロードキャストモデルを提供することができる。
+  サーバーは単一のシグナルをブロードキャストし、ページはモーフィングによってスムーズに更新される
+  #+begin_src ruby
+  # model
+  class Calendar < ApplicationRecord
+    broadcasts_refreshes
+  end
+
+  #view
+  turbo_stream_from @calendar
+  #+end_src
