@@ -1,0 +1,40 @@
+#+title: Decompose With Turbo Frames
+turbo frameを使用すると、ページの定義済みの部分をリクエストに応じて更新することができる。
+frame内のリンクやフォームは全てキャプチャされ、frameのコンテンツは応答を受信した後に自動的に更新される。
+frameはページの一部を<turbo-frame>要素でラップすることで作成され流。
+各要素は1意なIDを持つ必要があり、このIDはサーバーに新しいページを要求する際に、置き換えられるコンテンツと一致させるために使用する。
+1ページに複数のframeを持つことも可能
+#+begin_src html
+<body>
+  <div id="navigation">Links targeting the entire page</div>
+
+  <turbo-frame id="message_1">
+    <h1>My message title</h1>
+    <p>My message content</p>
+    <a href="/messages/1/edit">Edit this message</a>
+  </turbo-frame>
+
+  <turbo-frame id="comments">
+    <div id="comment_1">One comment</div>
+    <div id="comment_2">Two comment</div>
+
+    <form action="/messages/comments">...</form>
+  </turbo-frame>
+</body>
+#+end_src
+メッセージを編集するリンクがクリックされると、/messages/1/editのレスポンスから<turbo-frame id="message_1">セグメントが抽出され、
+クリック元のクリック元のフレームにコンテンツが置き換わる。
+#+begin_src html
+<body>
+  <h1>Editing message</h1>
+
+  <turbo-frame id="message_1">
+    <form action="/messages/1">
+      <input name="message[name]" type="text" value="My message title">
+      <textarea name="message[content]">My message content</textarea>
+      <input type="submit">
+    </form>
+  </turbo-frame>
+</body>
+#+end_src
+turbo-frameで囲むと<a><form>タグに影響を与えるので気をつけよう。
