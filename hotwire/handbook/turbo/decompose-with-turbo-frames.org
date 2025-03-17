@@ -38,3 +38,68 @@ frameはページの一部を<turbo-frame>要素でラップすることで作�
 </body>
 #+end_src
 turbo-frameで囲むと<a><form>タグに影響を与えるので気をつけよう。
+
+* Eager-Loading Frames
+- フレームは、フレームを含むページがロードされた時に読み込まれる必要はない。
+  turbo-frameタグにsrc属性がある場合、タグがページに表示されると同時に、参照先のURLが自動的に読み込まれる。
+  #+begin_src html
+  <body>
+    <h1>Imbox</h1>
+    <div id="emails">
+      ...
+    </div>
+
+    <turbo-frame id="set_aside_tray" src="/emails/set_aside">
+    </turbo-frame>
+
+    <turbo-frame id="reply_later_tray" src="/emails/reply_later">
+    </turbo-frame>
+  </body>
+  #+end_src
+  srcで参照されているURLへの個別のHTTPリクエストが行われている。
+- navigation中、Frameは新しいコンテンツを取得する際、<turbo-frame>要素に[aria-busy="true"]を設定する。
+  navigationが完了すると、Frameは[aria-busy]属性を削除する。<form>の送信によって<turbo-frame>をnavigateする場合、
+  turboはframeの[aria-busy="true"]属性と同時にformの[aria-busy="true"]属性も切り替える
+* Lazy-Loading Frames
+- ページが最初にロードされた時に表示されていないフレームは、loading="lasy"でマークできる。
+  モーダルなど、表示されるものの中にあるフレームの読み込みを遅らせるには最適。
+* Cache Benefits to Loading Frames
+- 共有で使いまわしているセグメントと、個別のユーザー向けに特化したコンテンツが混在している場合は、キャッシュの検索に必要な依存キーが多くなり、
+  キャッシュの回転頻度も高くなる。
+  キャッシュ効率を高めるために、turbo framesを使用して、セグメントを分離することでキャッシュの依存関係を減らすことができる
+* Targeting Navigation Into or Out of a Frame
+- ナビゲーションのターゲットを_topに設定することで、frameではなくページ全体を動かすことができる。また、ターゲットもそのフレームのIDに設定
+  することで、別の名前のフレームを動かすことができる。
+  フレーム内で他のリンクは動作させたくない場合、フレーム要素にdata-turbo-frame属性を追加して制御する。
+  #+begin_src html
+  <body>
+    <turbo-frame id="message_1">
+      ...
+      <a href="/messages/1/edit">
+        Edit this message (within the current frame)
+      </a>
+
+      <a href="/messages/1/permission" data-turbo-frame="_top">
+        Change permissions (replace the whole page)
+      </a>
+    </turbo-frame>
+
+    <form action="/messages/1/delete" data-turbo-frame="message_1">
+      <a href="/messages/1/warning" data-turbo-frame="_self">
+        Load warning within current frame
+      </a>
+
+      <input type="submit" value="Delete this message">
+    </form>
+  </body>
+  #+end_src
+
+* Promothing a Frame Navigation to a Page Visit
+- frameへの変更がブラウザの履歴にも影響するようにしたい場合、
+  #+begin_src html
+  <turbo-frame id="articles" data-turbo-action="advance">
+    <a href="/articles?page=2" rel="next">Next page</a>
+  </turbo-frame>
+  #+end_src
+
+* "Breaking out" from a Frame
